@@ -1,28 +1,25 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.2)
 
-project(msdfgen)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-find_package(Freetype REQUIRED)
+include(HunterGate)
+HunterGate(
+    URL "https://github.com/ruslo/hunter/archive/v0.23.30.tar.gz"
+    SHA1 "c062b0a2316cf8dcb57b6a9ad49fea1025a928f6"
+)
 
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-if (COMPILER_SUPPORTS_CXX11)
-	add_definitions(-DMSDFGEN_USE_CPP11)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-endif()
+project(msdfgen VERSION 1.5)
+
+hunter_add_package(freetype)
+hunter_add_package(tinyxml2)
+
+find_package(freetype CONFIG REQUIRED)
+find_package(tinyxml2 CONFIG REQUIRED)
 
 # Make release mode default (turn on optimizations)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
-
-
-# Note: Clang doesn't support openMP by default...
-#find_package(OpenMP)
-#if (OPENMP_FOUND)
-#	set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-#	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-#endif()
 
 #----------------------------------------------------------------
 # Support Functions
@@ -61,19 +58,117 @@ file(GLOB_RECURSE msdfgen_SOURCES
 	"ext/*.cpp"
 )
 
-include_directories(${FREETYPE_INCLUDE_DIRS})
-include_directories("include")
-
 # Build the library (aliased name because it's the same target name the exe)
 folderize_sources(msdfgen_HEADERS ${CMAKE_SOURCE_DIR})
 folderize_sources(msdfgen_SOURCES ${CMAKE_SOURCE_DIR})
 
 add_library(lib_msdfgen ${msdfgen_SOURCES} ${msdfgen_HEADERS})
-set_target_properties(lib_msdfgen PROPERTIES OUTPUT_NAME msdfgen)
-target_link_libraries(lib_msdfgen ${FREETYPE_LIBRARIES})
+set_target_properties(lib_msdfgen PROPERTIES
+    OUTPUT_NAME msdfgen
+    CXX_STANDARD 11
+    CXX_STANDARD_REQUIRED YES
+)
+
+target_link_libraries(lib_msdfgen PUBLIC freetype::freetype tinyxml2)
+target_include_directories(lib_msdfgen PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
+target_compile_definitions(lib_msdfgen PUBLIC MSDFGEN_USE_CPP11=1)
+
+find_package(OpenMP)
+if (TARGET OpenMP::OpenMP_CXX)
+    target_link_libraries(lib_msdfgen PUBLIC OpenMP::OpenMP_CXX)
+    target_compile_definitions(lib_msdfgen PUBLIC MSDFGEN_USE_OPENMP=1)
+endif()
+
 
 # Build the executable
 
-add_executable(msdfgen main.cpp)
+add_executable(msdfgen main.cpp msdfgen.h msdfgen-ext.h)
+set_target_properties(msdfgen PROPERTIES
+    CXX_STANDARD 11
+    CXX_STANDARD_REQUIRED YES
+)
 target_compile_definitions(msdfgen PRIVATE MSDFGEN_STANDALONE)
 target_link_libraries(msdfgen lib_msdfgen)
+
+#----------------------------------------------------------------
+# Install
+#----------------------------------------------------------------
+
+# Install public headers
+install(
+    FILES
+        msdfgen.h
+        msdfgen-ext.h
+    DESTINATION
+        include/msdfgen/
+)
+install(
+    FILES
+        core/arithmetics.hpp
+        core/Bitmap.h
+        core/Contour.h
+        core/EdgeColor.h
+        core/edge-coloring.h
+        core/EdgeHolder.h
+        core/edge-segments.h
+        core/equation-solver.h
+        core/render-sdf.h
+        core/save-bmp.h
+        core/shape-description.h
+        core/Shape.h
+        core/SignedDistance.h
+        core/Vector2.h
+    DESTINATION
+        include/msdfgen/core/
+)
+install(
+    FILES
+        ext/import-font.h
+	ext/import-svg.h
+	ext/save-png.h
+    DESTINATION
+        include/msdfgen/ext/
+)
+install(
+    FILES
+        include/lodepng.h
+    DESTINATION
+        include/
+)
+
+# Create the CMake version file.
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/msdfgenConfigVersion.cmake"
+  VERSION ${PACKAGE_VERSION}
+  COMPATIBILITY AnyNewerVersion
+)
+
+set(targets_export_name "msdfgenTargets")
+
+# Create the Config file.
+include(CMakePackageConfigHelpers)
+set(ConfigPackageLocation lib/cmake/msdfgen)
+configure_package_config_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/msdfgenConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/msdfgenConfig.cmake
+  INSTALL_DESTINATION ${ConfigPackageLocation}
+)
+
+install(TARGETS lib_msdfgen
+    EXPORT ${targets_export_name}
+    LIBRARY DESTINATION lib COMPONENT Runtime
+    ARCHIVE DESTINATION lib COMPONENT Development
+    RUNTIME DESTINATION bin COMPONENT Runtime
+    BUNDLE DESTINATION bin COMPONENT Runtime
+    PUBLIC_HEADER DESTINATION include COMPONENT Development
+    BUNDLE DESTINATION bin COMPONENT Runtime
+)
+
+# Install the generated CMake files.
+install(EXPORT ${targets_export_name} NAMESPACE "msdfgen::" DESTINATION lib/cmake/msdfgen)
+install(
+  FILES "${CMAKE_CURRENT_BINARY_DIR}/msdfgenConfigVersion.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/msdfgenConfig.cmake"
+  DESTINATION ${ConfigPackageLocation}
+)

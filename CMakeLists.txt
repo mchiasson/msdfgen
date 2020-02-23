@@ -103,14 +103,23 @@ install(
     FILES
         core/arithmetics.hpp
         core/Bitmap.h
+        core/Bitmap.hpp
+        core/BitmapRef.hpp
+        core/contour-combiners.h
         core/Contour.h
         core/EdgeColor.h
         core/edge-coloring.h
         core/EdgeHolder.h
         core/edge-segments.h
+        core/edge-selectors.h
         core/equation-solver.h
+        core/estimate-sdf-error.h
+        core/pixel-conversion.hpp
+        core/rasterization.h
         core/render-sdf.h
         core/save-bmp.h
+        core/save-tiff.h
+        core/Scanline.h
         core/shape-description.h
         core/Shape.h
         core/SignedDistance.h

@@ -47,6 +47,7 @@ endfunction(folderize_sources)
 
 file(GLOB_RECURSE msdfgen_HEADERS
 	"core/*.h"
+	"core/*.hpp"
 	"lib/*.h"
 	"ext/*.h"
 	"include/*.h"
@@ -83,10 +84,6 @@ endif()
 # Build the executable
 
 add_executable(msdfgen main.cpp msdfgen.h msdfgen-ext.h)
-set_target_properties(msdfgen PROPERTIES
-    CXX_STANDARD 11
-    CXX_STANDARD_REQUIRED YES
-)
 target_compile_definitions(msdfgen PRIVATE MSDFGEN_STANDALONE)
 target_link_libraries(msdfgen lib_msdfgen)
 

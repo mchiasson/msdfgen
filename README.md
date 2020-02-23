@@ -3,7 +3,7 @@
 This is a utility for generating signed distance fields from vector shapes and font glyphs,
 which serve as a texture representation that can be used in real-time graphics to efficiently reproduce said shapes.
 Although it can also be used to generate conventional signed distance fields best known from
-[this Valve paper](http://www.valvesoftware.com/publications/2007/SIGGRAPH2007_AlphaTestedMagnification.pdf)
+[this Valve paper](https://steamcdn-a.akamaihd.net/apps/valve/2007/SIGGRAPH2007_AlphaTestedMagnification.pdf)
 and pseudo-distance fields, its primary purpose is to generate multi-channel distance fields,
 using a method I have developed. Unlike monochrome distance fields, they have the ability
 to reproduce sharp corners almost perfectly by utilizing all three color channels.
@@ -14,16 +14,8 @@ The following comparison demonstrates the improvement in image quality.
 ![demo-sdf16](https://cloud.githubusercontent.com/assets/18639794/14770360/20c51156-0a70-11e6-8f03-ed7632d07997.png)
 ![demo-sdf32](https://cloud.githubusercontent.com/assets/18639794/14770361/251a4406-0a70-11e6-95a7-e30e235ac729.png)
 
-## New in version 1.4
- - The procedure of how contours are combined together has been reworked, and now supports overlapping contours,
-   which are often present in fonts with auto-generated accented glyphs. Since this is a major change to the core algorithm,
-   the original versions of all functions in [msdfgen.h](msdfgen.h) have been preserved with `_legacy` suffix,
-   and can be enabled in the command line tool with **-legacy** switch.
- - A major bug has been fixed in the evaluation of signed distance of cubic curves, in which at least one of the control points
-   lies at the endpoint. If you use an older version, you should update now.
- - In the standalone program, the orientation of the input is now being automatically detected by sampling the signed distance
-   at an arbitrary point outside the shape's bounding box, and the output adjusted accordingly. This can be disabled
-   by new option **-keeporder** or the pre-existing **-reverseorder**.
+- To learn more about this method, you can read my [Master's thesis](https://github.com/Chlumsky/msdfgen/files/3050967/thesis.pdf).
+- Check what's new in the [changelog](CHANGELOG.md).
 
 ## Getting started
 
@@ -36,9 +28,11 @@ Those are exposed by the [msdfgen-ext.h](msdfgen-ext.h) header. This module uses
 [TinyXML2](http://www.grinninglizard.com/tinyxml2/),
 and [LodePNG](http://lodev.org/lodepng/).
 
-Additionaly, there is the [main.cpp](main.cpp), which wraps the functionality into
+Additionally, there is the [main.cpp](main.cpp), which wraps the functionality into
 a comprehensive standalone console program. To start using the program immediately,
-there is a Windows binary available for download in the "Releases" section.
+there is a Windows binary available for download in the ["Releases" section](https://github.com/Chlumsky/msdfgen/releases).
+To build the project, you may use the included [Visual Studio solution](Msdfgen.sln)
+or [CMake script](CMakeLists.txt).
 
 ## Console commands
 
@@ -64,15 +58,15 @@ The input can be specified as one of:
 The complete list of available options can be printed with **-help**.
 Some of the important ones are:
  - **-o \<filename\>** &ndash; specifies the output file name. The desired format will be deduced from the extension
-   (png, bmp, txt, bin). Otherwise, use -format.
+   (png, bmp, tif, txt, bin). Otherwise, use -format.
  - **-size \<width\> \<height\>** &ndash; specifies the dimensions of the output distance field (in pixels).
  - **-range \<range\>**, **-pxrange \<range\>** &ndash; specifies the width of the range around the shape
    between the minimum and maximum representable signed distance in shape units or distance field pixels, respectivelly.
- - **-autoframe** &ndash; automatically frames the shape to fit the distance field. If the output must be precisely aligned,
-   you should manually position it using -translate and -scale instead.
  - **-scale \<scale\>** &ndash; sets the scale used to convert shape units to distance field pixels.
  - **-translate \<x\> \<y\>** &ndash; sets the translation of the shape in shape units. Otherwise the origin (0, 0)
    lies in the bottom left corner.
+ - **-autoframe** &ndash; automatically frames the shape to fit the distance field. If the output must be precisely aligned,
+   you should manually position it using -translate and -scale instead.
  - **-angle \<angle\>** &ndash; specifies the maximum angle to be considered a corner.
    Can be expressed in radians (3.0) or degrees with D at the end (171.9D).
  - **-testrender \<filename.png\> \<width\> \<height\>** - tests the generated distance field by using it to render an image
@@ -90,6 +84,8 @@ msdfgen.exe msdf -font C:\Windows\Fonts\arialbd.ttf 'M' -o msdf.png -size 32 32 
 will take the glyph capital M from the Arial Bold typeface, generate a 32&times;32 multi-channel distance field
 with a 4 pixels wide distance range, store it into msdf.png, and create a test render of the glyph as render.png.
 
+**Note:** Do not use `-autoframe` to generate character maps! It is intended as a quick preview only.
+
 ## Library API
 
 If you choose to use this utility inside your own program, there are a few simple steps you need to perform
@@ -103,7 +99,7 @@ in order to generate a distance field. Please note that all classes and function
    `color` member. Keep in mind that at least two color channels must be turned on in each edge, and iff two edges meet
    at a sharp corner, they must only have one channel in common.
  - Call `generateSDF`, `generatePseudoSDF`, or `generateMSDF` to generate a distance field into a floating point
-   `Bitmap` object. This can then be worked with further or saved to a file using `saveBmp` or `savePng`.
+   `Bitmap` object. This can then be worked with further or saved to a file using `saveBmp`, `savePng`, or `saveTiff`.
  - You may also render an image from the distance field using `renderSDF`. Consider calling `simulate8bit`
    on the distance field beforehand to simulate the standard 8 bits/channel image format.
 
@@ -125,7 +121,7 @@ int main() {
                 //                      max. angle
                 edgeColoringSimple(shape, 3.0);
                 //           image width, height
-                Bitmap<FloatRGB> msdf(32, 32);
+                Bitmap<float, 3> msdf(32, 32);
                 //                     range, scale, translation
                 generateMSDF(msdf, shape, 4.0, 1.0, Vector2(4.0, 4.0));
                 savePng(msdf, "output.png");
@@ -168,6 +164,8 @@ void main() {
     color = mix(bgColor, fgColor, opacity);
 }
 ```
+
+**Note:** This is an example shader only and probably is not optimal for your use case! Please do not blindly copy & paste.
 
 ## Shape description syntax
 
